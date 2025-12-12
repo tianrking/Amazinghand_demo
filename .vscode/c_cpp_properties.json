@@ -8,9 +8,11 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/include",
                 "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/src",
+                "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WebServer/src",
                 "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/lib/SCServo",
+                "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFi/src",
+                "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/.pio/libdeps/esp32-s3-devkitc-1/ArduinoJson/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/SPIFFS/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/FS/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/SPI/src",
@@ -232,8 +234,6 @@
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/Ticker/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/USB/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/Update/src",
-                "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WebServer/src",
-                "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFi/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFiClientSecure/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFiProv/src",
                 "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/Wire/src",
@@ -242,9 +242,11 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/include",
                     "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/src",
+                    "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WebServer/src",
                     "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/lib/SCServo",
+                    "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFi/src",
+                    "/home/w0x7ce/Desktop/esp32s3_pio_arduino_2.0.17_freertos_demo/.pio/libdeps/esp32-s3-devkitc-1/ArduinoJson/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/SPIFFS/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/FS/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/SPI/src",
@@ -466,8 +468,6 @@
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/Ticker/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/USB/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/Update/src",
-                    "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WebServer/src",
-                    "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFi/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFiClientSecure/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/WiFiProv/src",
                     "/home/w0x7ce/.platformio/packages/framework-arduinoespressif32@src-c8421d4c31a3669e37f28c84448f2901/libraries/Wire/src",
