@@ -2,12 +2,14 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include <WebSocketsServer.h>
 
 // ==========================================
 // 硬件配置
 // ==========================================
 SCSCL sc;
 WebServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(81);
 
 #define SERVO_TX_PIN D9
 #define SERVO_RX_PIN D10
@@ -194,11 +196,20 @@ String getHTML() {
     .preset-btn:active { transform: scale(0.95); }
     .status { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin-top: 20px; text-align: center; font-size: 18px; }
     .status-emoji { font-size: 2em; margin-bottom: 10px; }
+    .connection-status { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.7); padding: 10px 15px; border-radius: 20px; font-size: 14px; z-index: 1000; }
+    .connection-status.connected { background: rgba(0,128,0,0.7); }
+    .connection-status.disconnected { background: rgba(128,0,0,0.7); }
+    .apply-btn { display: none; /* 隐藏应用按钮，因为现在是实时控制 */ }
   </style>
 </head>
 <body>
+  <!-- WebSocket 连接状态指示器 -->
+  <div class="connection-status" id="connectionStatus">
+    <span id="connectionDot">🔴</span> 连接中...
+  </div>
+
   <div class="container">
-    <h1>🤖 AmazingHand Finger Control</h1>
+    <h1>🤖 AmazingHand Real-time Control</h1>
 
     <div class="finger-controls">
       <!-- Thumb -->
@@ -293,45 +304,148 @@ String getHTML() {
   </div>
 
   <script>
+    // WebSocket 连接
+    let websocket;
+    let reconnectAttempts = 0;
+    let isConnected = false;
+
+    // 初始化 WebSocket 连接
+    function initWebSocket() {
+      const wsUrl = `ws://${window.location.hostname}:81/`;
+      websocket = new WebSocket(wsUrl);
+
+      websocket.onopen = function() {
+        console.log('WebSocket 连接成功');
+        isConnected = true;
+        reconnectAttempts = 0;
+        updateConnectionStatus(true);
+      };
+
+      websocket.onclose = function() {
+        console.log('WebSocket 连接关闭');
+        isConnected = false;
+        updateConnectionStatus(false);
+        // 自动重连
+        attemptReconnect();
+      };
+
+      websocket.onerror = function(error) {
+        console.error('WebSocket 错误:', error);
+        updateConnectionStatus(false);
+      };
+
+      websocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+      };
+    }
+
+    // 自动重连
+    function attemptReconnect() {
+      if (reconnectAttempts < 5) {
+        reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000); // 指数退避，最大30秒
+        console.log(`尝试重连 WebSocket... (${reconnectAttempts}/5)`);
+        setTimeout(initWebSocket, delay);
+      } else {
+        console.error('WebSocket 重连失败，请刷新页面');
+        updateStatus('error', '连接失败，请刷新页面');
+      }
+    }
+
+    // 更新连接状态显示
+    function updateConnectionStatus(connected) {
+      const statusEl = document.getElementById('connectionStatus');
+      const dotEl = document.getElementById('connectionDot');
+
+      if (connected) {
+        statusEl.className = 'connection-status connected';
+        dotEl.textContent = '🟢';
+        statusEl.innerHTML = '<span id="connectionDot">🟢</span> 已连接';
+      } else {
+        statusEl.className = 'connection-status disconnected';
+        dotEl.textContent = '🔴';
+        statusEl.innerHTML = '<span id="connectionDot">🔴</span> 连接断开';
+      }
+    }
+
+    // 处理 WebSocket 消息
+    function handleWebSocketMessage(data) {
+      if (data.type === 'feedback') {
+        if (data.finger) {
+          updateStatus(data.finger, `${data.finger} 控制: Bend=${data.bend}, Yaw=${data.yaw}`);
+        } else if (data.action) {
+          updateStatus(data.action, `执行动作: ${data.action}`);
+        }
+      }
+    }
+
+    // 发送手指控制消息
+    function sendFingerControl(finger, bend, yaw) {
+      if (isConnected) {
+        const message = {
+          type: 'finger',
+          finger: finger,
+          bend: bend,
+          yaw: yaw
+        };
+        websocket.send(JSON.stringify(message));
+      }
+    }
+
+    // 发送预设动作
+    function sendAction(action) {
+      if (isConnected) {
+        const message = {
+          type: 'action',
+          action: action
+        };
+        websocket.send(JSON.stringify(message));
+      } else {
+        // 如果 WebSocket 未连接，回退到 HTTP POST
+        fetch('/action', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({action: action})
+        })
+        .then(response => response.json())
+        .then(data => {
+          updateStatus(data.status, data.message);
+        });
+      }
+    }
+
     function updateSlider(sliderId) {
       const slider = document.getElementById(sliderId);
       const valueSpan = document.getElementById(sliderId + 'Value');
       valueSpan.textContent = slider.value;
+
+      // 实时控制：根据滑块 ID 确定是哪个手指
+      if (sliderId.startsWith('thumb') || sliderId.startsWith('index') ||
+          sliderId.startsWith('middle') || sliderId.startsWith('ring') ||
+          sliderId.startsWith('pinky')) {
+
+        // 提取手指名称
+        let finger = '';
+        if (sliderId.startsWith('thumb')) finger = 'thumb';
+        else if (sliderId.startsWith('index')) finger = 'index';
+        else if (sliderId.startsWith('middle')) finger = 'middle';
+        else if (sliderId.startsWith('ring')) finger = 'ring';
+        else if (sliderId.startsWith('pinky')) finger = 'pinky';
+
+        // 获取当前值并发送
+        const bend = parseFloat(document.getElementById(finger + 'Bend').value);
+        const yaw = finger === 'pinky' ? 0 : parseFloat(document.getElementById(finger + 'Yaw').value);
+
+        sendFingerControl(finger, bend, yaw);
+      }
     }
 
     function applyFingerControl(finger) {
+      // 保留此函数以防万一，但现在通过 updateSlider 实现实时控制
       const bend = parseFloat(document.getElementById(finger + 'Bend').value);
       const yaw = finger === 'pinky' ? 0 : parseFloat(document.getElementById(finger + 'Yaw').value);
-
-      fetch('/finger', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          finger: finger,
-          bend: bend,
-          yaw: yaw
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        updateStatus(finger, data.message);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        updateStatus('error', 'Failed to control finger');
-      });
-    }
-
-    function sendAction(action) {
-      fetch('/action', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({action: action})
-      })
-      .then(response => response.json())
-      .then(data => {
-        updateStatus(data.status, data.message);
-      });
+      sendFingerControl(finger, bend, yaw);
     }
 
     function resetAllFingers() {
@@ -368,6 +482,12 @@ String getHTML() {
         default: emoji.textContent = '👋';
       }
     }
+
+    // 页面加载完成后初始化 WebSocket
+    window.addEventListener('load', function() {
+      initWebSocket();
+      updateStatus('ready', '系统就绪 - 拖动滑块实时控制手指！');
+    });
   </script>
 </body>
 </html>
@@ -495,6 +615,98 @@ void handleStatus() {
 }
 
 // ==========================================
+// WebSocket 事件处理
+// ==========================================
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  switch(type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("[%u] Disconnected!\n", num);
+      break;
+
+    case WStype_CONNECTED: {
+      IPAddress ip = webSocket.remoteIP(num);
+      Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+
+      // 发送连接确认消息
+      webSocket.sendTXT(num, "{\"type\":\"connected\",\"message\":\"WebSocket connected\"}");
+      break;
+    }
+
+    case WStype_TEXT: {
+      Serial.printf("[%u] get Text: %s\n", num, payload);
+
+      // 解析 JSON 数据
+      StaticJsonDocument<200> doc;
+      DeserializationError error = deserializeJson(doc, payload);
+
+      if (error) {
+        Serial.printf("JSON parsing failed: %s\n", error.c_str());
+        break;
+      }
+
+      // 处理不同类型的消息
+      if (doc.containsKey("type")) {
+        String msgType = doc["type"];
+
+        if (msgType == "finger") {
+          // 处理手指控制
+          String finger = doc["finger"];
+          float bend = doc["bend"];
+          float yaw = doc["yaw"];
+
+          if (finger == "thumb") {
+            setThumb(bend, yaw);
+          } else if (finger == "index") {
+            setIndex(bend, yaw);
+          } else if (finger == "middle") {
+            setMiddle(bend, yaw);
+          } else if (finger == "ring") {
+            setRing(bend, yaw);
+          } else if (finger == "pinky") {
+            setPinky(bend, yaw);
+          }
+
+          // 发送反馈
+          String feedback = "{\"type\":\"feedback\",\"finger\":\"" + finger + "\",\"bend\":" + String(bend, 1) + ",\"yaw\":" + String(yaw, 1) + "}";
+          webSocket.sendTXT(num, feedback);
+
+        } else if (msgType == "action") {
+          // 处理预设动作
+          String action = doc["action"];
+
+          if (action == "fist") {
+            makeFist();
+          } else if (action == "open") {
+            openHand();
+          } else if (action == "scissors") {
+            scissorsGesture();
+          } else if (action == "thumbsup") {
+            thumbsUp();
+          } else if (action == "point") {
+            pointGesture();
+          } else if (action == "ok") {
+            okGesture();
+          }
+
+          // 发送反馈
+          String feedback = "{\"type\":\"feedback\",\"action\":\"" + action + "\"}";
+          webSocket.sendTXT(num, feedback);
+        }
+      }
+      break;
+    }
+
+    case WStype_BIN:
+    case WStype_ERROR:
+    case WStype_FRAGMENT_TEXT_START:
+    case WStype_FRAGMENT_BIN_START:
+    case WStype_FRAGMENT:
+    case WStype_FRAGMENT_FIN:
+      break;
+  }
+}
+
+// ==========================================
 // 初始化和主循环
 // ==========================================
 void setup() {
@@ -523,6 +735,11 @@ void setup() {
   server.begin();
   Serial.println("Web Server Started");
 
+  // 初始化WebSocket服务器
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+  Serial.println("WebSocket Server Started on port 81");
+
   // 开启所有电机扭矩
   for (int i = 11; i <= 18; i++) {
     sc.EnableTorque(i, 1);
@@ -541,5 +758,6 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  webSocket.loop();
   delay(10);
 }
