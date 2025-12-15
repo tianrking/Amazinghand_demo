@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazing Hand 上位机</title>
+    <title>Amazing Hand 上位机 Pro</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
             --card-bg: #2d2d2d;
             --text-color: #e0e0e0;
-            --accent-color: #4CAF50;
+            --accent-color: #4CAF50;     /* 绿色：电机状态 */
+            --control-color: #2196F3;    /* 蓝色：手指控制 */
             --danger-color: #ff5252;
         }
         body {
@@ -23,15 +24,18 @@
             align-items: center;
         }
         h1 { margin-bottom: 10px; }
+        
+        /* 状态栏 */
         .status-bar {
             background: var(--card-bg);
             padding: 10px 20px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             display: flex;
             gap: 15px;
             align-items: center;
             font-size: 0.9em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
         .status-indicator {
             width: 10px;
@@ -40,36 +44,86 @@
             background-color: var(--danger-color);
             transition: background-color 0.3s;
         }
+
+        /* 区域标题 */
+        .section-title {
+            width: 100%;
+            max-width: 900px;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #444;
+            color: #aaa;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 网格布局 */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 两列布局 */
             gap: 15px;
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
+            margin-bottom: 20px;
         }
-        .motor-card {
+        /* 手指控制是4列 */
+        .fingers-grid { grid-template-columns: repeat(4, 1fr); }
+        /* 电机显示是4列（紧凑版） */
+        .motors-grid { grid-template-columns: repeat(4, 1fr); }
+
+        /* 卡片样式 */
+        .card {
             background-color: var(--card-bg);
             padding: 15px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
-        .motor-header {
+        .finger-card { border-top: 3px solid var(--control-color); }
+        .motor-card { border-top: 3px solid var(--accent-color); }
+
+        .card-header {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #bbb;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* 滑块组样式 */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-label {
+            font-size: 0.8em;
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
-            font-weight: bold;
+            margin-bottom: 2px;
         }
+        
         input[type="range"] {
             width: 100%;
             cursor: pointer;
+            accent-color: var(--control-color);
         }
+        /* 电机滑块颜色不同 */
+        .motor-card input[type="range"] {
+            accent-color: var(--accent-color);
+        }
+
         .value-display {
-            color: var(--accent-color);
             font-family: monospace;
+            font-weight: bold;
         }
+
+        /* 按钮 */
         .btn-reset {
-            margin-top: 30px;
-            padding: 12px 30px;
+            margin-top: 20px;
+            padding: 12px 40px;
             background-color: var(--danger-color);
             color: white;
             border: none;
@@ -77,57 +131,173 @@
             font-size: 1.1em;
             cursor: pointer;
             transition: opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .btn-reset:hover { opacity: 0.8; }
+
+        /* 响应式调整 */
+        @media (max-width: 800px) {
+            .fingers-grid, .motors-grid { grid-template-columns: repeat(2, 1fr); }
+        }
     </style>
 </head>
 <body>
 
-    <h1>🤖 Amazing Hand 控制台</h1>
+    <h1>🤖 Amazing Hand 控制台 Pro</h1>
 
     <div class="status-bar">
         <div id="connection-dot" class="status-indicator"></div>
         <span id="connection-text">未连接后端 (127.0.0.1:8000)</span>
     </div>
 
-    <div class="grid-container" id="sliders-container">
+    <div class="section-title">
+        <span>🖐️ 手指姿态控制 (Finger Control)</span>
+        <span style="font-size:0.7em; opacity:0.7">Bend: 弯曲 | Side: 侧摆</span>
+    </div>
+    <div class="grid-container fingers-grid" id="fingers-container">
+        </div>
+
+    <div class="section-title">
+        <span>⚙️ 电机实时状态 (Motor Output)</span>
+        <span style="font-size:0.7em; opacity:0.7">ID 0-7 Raw Data</span>
+    </div>
+    <div class="grid-container motors-grid" id="motors-container">
         </div>
 
     <button class="btn-reset" onclick="resetAll()">🛑 全部归零 (Reset)</button>
 
     <script>
         const API_URL = "http://127.0.0.1:8000";
-        const MOTOR_COUNT = 8;
-        const SYNC_INTERVAL = 50; // ms (20Hz)
+        const FINGER_COUNT = 4;
+        const MOTORS_PER_FINGER = 2;
+        const MOTOR_COUNT = FINGER_COUNT * MOTORS_PER_FINGER;
+        const SYNC_INTERVAL = 50; // ms
 
-        // 初始化状态数组
+        // 数据状态
+        // motorValues 存放最终发送给后端的弧度值 (-1.57 ~ 1.57)
         let motorValues = new Array(MOTOR_COUNT).fill(0.0);
-        let isConnected = false;
+        
+        // 保存手指当前状态，方便计算
+        let fingerState = Array.from({length: FINGER_COUNT}, () => ({ bend: 0.0, side: 0.0 }));
 
-        // 1. 动态生成滑块
-        const container = document.getElementById('sliders-container');
-        for (let i = 0; i < MOTOR_COUNT; i++) {
+        // ==========================================
+        // 初始化 UI
+        // ==========================================
+        
+        const fingerContainer = document.getElementById('fingers-container');
+        const motorContainer = document.getElementById('motors-container');
+
+        // 1. 生成手指控制卡片 (ID 0-3)
+        const fingerNames = ["食指 (Index)", "中指 (Middle)", "无名指 (Ring)", "小指 (Pinky)"];
+        
+        for (let i = 0; i < FINGER_COUNT; i++) {
             const card = document.createElement('div');
-            card.className = 'motor-card';
+            card.className = 'card finger-card';
             card.innerHTML = `
-                <div class="motor-header">
-                    <span>Motor ID ${i}</span>
-                    <span class="value-display" id="val-${i}">0.00</span>
+                <div class="card-header">${fingerNames[i] || 'Finger '+i}</div>
+                
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Bend (弯曲)</span>
+                        <span class="value-display" id="f${i}-bend-val">0.00</span>
+                    </div>
+                    <input type="range" id="f${i}-bend" min="-1.57" max="1.57" step="0.01" value="0" 
+                           oninput="updateFingerLogic(${i})">
                 </div>
-                <input type="range" id="slider-${i}" min="-1.57" max="1.57" step="0.01" value="0">
-            `;
-            container.appendChild(card);
 
-            // 绑定事件：滑块拖动时更新本地数组
-            const slider = card.querySelector('input');
-            slider.addEventListener('input', (e) => {
-                const val = parseFloat(e.target.value);
-                motorValues[i] = val;
-                document.getElementById(`val-${i}`).innerText = val.toFixed(2);
-            });
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Side (侧摆)</span>
+                        <span class="value-display" id="f${i}-side-val">0.00</span>
+                    </div>
+                    <input type="range" id="f${i}-side" min="-0.5" max="0.5" step="0.01" value="0" 
+                           oninput="updateFingerLogic(${i})">
+                </div>
+            `;
+            fingerContainer.appendChild(card);
         }
 
-        // 2. 核心循环：定时将数据发送给后端
+        // 2. 生成电机显示卡片 (ID 0-7)
+        for (let i = 0; i < MOTOR_COUNT; i++) {
+            const card = document.createElement('div');
+            card.className = 'card motor-card';
+            card.innerHTML = `
+                <div class="card-header">Motor ID ${i}</div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Rad</span>
+                        <span class="value-display" id="m${i}-val">0.00</span>
+                    </div>
+                    <input type="range" id="m${i}-slider" min="-1.57" max="1.57" step="0.01" value="0"
+                           oninput="manualMotorUpdate(${i}, this.value)">
+                </div>
+            `;
+            motorContainer.appendChild(card);
+        }
+
+        // ==========================================
+        // 核心逻辑：解耦算法
+        // ==========================================
+
+        /**
+         * 当手指滑块变动时，计算对应的两个电机角度
+         * 算法：
+         * Motor_Left  (Even ID) = Side + Bend
+         * Motor_Right (Odd  ID) = Side - Bend
+         */
+        function updateFingerLogic(fingerIdx) {
+            // 1. 获取输入
+            const bend = parseFloat(document.getElementById(`f${fingerIdx}-bend`).value);
+            const side = parseFloat(document.getElementById(`f${fingerIdx}-side`).value);
+            
+            // 更新显示数值
+            document.getElementById(`f${fingerIdx}-bend-val`).innerText = bend.toFixed(2);
+            document.getElementById(`f${fingerIdx}-side-val`).innerText = side.toFixed(2);
+
+            // 保存状态
+            fingerState[fingerIdx].bend = bend;
+            fingerState[fingerIdx].side = side;
+
+            // 2. 混合算法 (Mixing)
+            // 注意：这里假设电机偶数ID是左，奇数ID是右。如果你的实际硬件相反，请调整加减号
+            let motorLeft = side + bend; 
+            let motorRight = side - bend;
+
+            // 3. 限制范围 (Clamping)
+            motorLeft = Math.max(-1.57, Math.min(1.57, motorLeft));
+            motorRight = Math.max(-1.57, Math.min(1.57, motorRight));
+
+            // 4. 更新底层数据和UI
+            const motorId1 = fingerIdx * 2;
+            const motorId2 = fingerIdx * 2 + 1;
+
+            updateMotorUI(motorId1, motorLeft);
+            updateMotorUI(motorId2, motorRight);
+        }
+
+        /**
+         * 更新电机的数据和UI
+         */
+        function updateMotorUI(motorId, value) {
+            motorValues[motorId] = value;
+            document.getElementById(`m${motorId}-slider`).value = value;
+            document.getElementById(`m${motorId}-val`).innerText = value.toFixed(2);
+        }
+
+        /**
+         * 允许用户直接拖动下方电机滑块 (手动微调)
+         * 注意：这会破坏手指控制的同步性，直到下一次动手指滑块
+         */
+        function manualMotorUpdate(motorId, value) {
+            const val = parseFloat(value);
+            motorValues[motorId] = val;
+            document.getElementById(`m${motorId}-val`).innerText = val.toFixed(2);
+        }
+
+        // ==========================================
+        // 通信与系统功能
+        // ==========================================
+
         async function syncLoop() {
             try {
                 const response = await fetch(`${API_URL}/control`, {
@@ -136,42 +306,48 @@
                     body: JSON.stringify({ values: motorValues })
                 });
 
-                if (response.ok) {
-                    setConnectionStatus(true);
-                } else {
-                    setConnectionStatus(false);
-                }
+                if (response.ok) setConnectionStatus(true);
+                else setConnectionStatus(false);
             } catch (error) {
                 setConnectionStatus(false);
             }
         }
 
-        // 3. UI 状态更新
         function setConnectionStatus(connected) {
             const dot = document.getElementById('connection-dot');
             const text = document.getElementById('connection-text');
             if (connected) {
-                dot.style.backgroundColor = '#4CAF50'; // Green
+                dot.style.backgroundColor = '#4CAF50';
                 text.innerText = "✅ 已连接 (Online)";
             } else {
-                dot.style.backgroundColor = '#ff5252'; // Red
+                dot.style.backgroundColor = '#ff5252';
                 text.innerText = "❌ 连接断开 (Offline)";
             }
         }
 
-        // 4. 归零功能
         function resetAll() {
+            // 重置数组
             motorValues.fill(0.0);
-            // 更新所有 UI
-            for (let i = 0; i < MOTOR_COUNT; i++) {
-                document.getElementById(`slider-${i}`).value = 0;
-                document.getElementById(`val-${i}`).innerText = "0.00";
+            
+            // 重置 UI - 手指
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                fingerState[i] = { bend: 0, side: 0 };
+                document.getElementById(`f${i}-bend`).value = 0;
+                document.getElementById(`f${i}-side`).value = 0;
+                document.getElementById(`f${i}-bend-val`).innerText = "0.00";
+                document.getElementById(`f${i}-side-val`).innerText = "0.00";
             }
-            // 立即发送一次
+
+            // 重置 UI - 电机
+            for (let i = 0; i < MOTOR_COUNT; i++) {
+                updateMotorUI(i, 0.0);
+            }
+            
+            // 立即发送
             syncLoop();
         }
 
-        // 启动定时器
+        // 启动循环
         setInterval(syncLoop, SYNC_INTERVAL);
 
     </script>
