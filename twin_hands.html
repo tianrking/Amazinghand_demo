@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazing Hand Ultimate Control</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-sub: #a0a0a0;
+            --accent-green: #00e676;
+            --accent-blue: #2979ff;
+            --accent-orange: #ff9100;
+            --danger: #ff1744;
+            --border: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 20px; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; }
+
+        /* 状态栏 */
+        .status-bar {
+            background: var(--card-bg);
+            padding: 10px 25px;
+            border-radius: 50px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 0.9rem;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background-color: var(--danger);
+            box-shadow: 0 0 5px var(--danger);
+            transition: all 0.3s;
+        }
+        .status-dot.online {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        /* 容器布局 */
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1400px;
+        }
+
+        /* 手部面板 */
+        .hand-panel {
+            flex: 1;
+            min-width: 450px;
+            max-width: 600px;
+            background: #181818;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .hand-header {
+            padding: 15px 20px;
+            background: #252525;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+        .hand-panel.left { border-top: 4px solid var(--accent-blue); }
+        .hand-panel.right { border-top: 4px solid var(--accent-orange); }
+
+        /* 控制区域 */
+        .control-section { padding: 20px; }
+        .section-label {
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 手指卡片 */
+        .finger-group {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 80px 1fr 1fr; /* 标题 | 协同控制 | 电机反馈 */
+            gap: 20px;
+            align-items: center;
+        }
+
+        .finger-title {
+            font-weight: bold;
+            color: var(--text-main);
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        /* 滑块容器 */
+        .slider-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 滑块样式 */
+        .slider-wrap {
+            display: flex;
+            flex-direction: column;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            margin-bottom: 2px;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+            appearance: none;
+            outline: none;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type=range]:active::-webkit-slider-thumb { transform: scale(1.3); }
+
+        /* 颜色区分 */
+        /* 协同滑块 (蓝/橙) */
+        .synergy-slider::-webkit-slider-thumb { background: var(--accent-green); }
+        /* 电机滑块 (灰) */
+        .motor-slider::-webkit-slider-thumb { background: #777; width: 10px; height: 10px; }
+
+        .value-text { font-family: monospace; color: var(--text-main); }
+
+        /* 底部按钮 */
+        .footer { margin-top: 40px; margin-bottom: 40px; }
+        .btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.8; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Amazing Hand Ultimate Control</h1>
+
+    <div class="status-bar">
+        <div id="status-dot" class="status-dot"></div>
+        <div id="status-text">正在连接后端 API...</div>
+        <div style="border-left: 1px solid #444; height: 20px; margin: 0 10px;"></div>
+        <div id="mode-text">检测中...</div>
+    </div>
+
+    <div id="main-container" class="main-container">
+        </div>
+
+    <div class="footer">
+        <button class="btn" onclick="resetAll()">🛑 全部复位 (Reset All)</button>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000";
+        
+        // 全局状态
+        let appData = {
+            mode: 'unknown',
+            totalMotors: 0,
+            targets: [] // 最终发送给后端的数组
+        };
+
+        // UI 状态缓存 (用于协同计算)
+        // 结构: { 'left': [ {bend:0, side:0}, ... ], 'right': ... }
+        let handState = {
+            left: [],
+            right: []
+        };
+
+        let isConnected = false;
+
+        // ================= 初始化 =================
+
+        async function init() {
+            setInterval(syncLoop, 50); // 20Hz 通信频率
+        }
+
+        async function syncLoop() {
+            try {
+                // 如果未初始化界面，先获取状态
+                if (appData.mode === 'unknown') {
+                    const res = await fetch(`${API_URL}/status`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setupApp(data);
+                    }
+                } else {
+                    // 已初始化，发送控制数据
+                    const res = await fetch(`${API_URL}/control`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: appData.targets })
+                    });
+                    
+                    if (res.ok) updateConnectionStatus(true);
+                    else updateConnectionStatus(false);
+                }
+            } catch (e) {
+                updateConnectionStatus(false);
+            }
+        }
+
+        function setupApp(data) {
+            appData.mode = data.mode;
+            appData.totalMotors = data.motor_count;
+            // 如果后端发来的 targets 为空，则初始化全0
+            appData.targets = (data.targets && data.targets.length === data.motor_count) 
+                              ? data.targets 
+                              : new Array(data.motor_count).fill(0);
+
+            // 初始化 UI 状态缓存
+            const fingersPerHand = 4; // 假设每只手4个手指 (8个电机)
+            for(let i=0; i<fingersPerHand; i++) {
+                handState.left.push({bend: 0, side: 0});
+                handState.right.push({bend: 0, side: 0});
+            }
+
+            renderInterface();
+            updateConnectionStatus(true);
+        }
+
+        function updateConnectionStatus(online) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const modeText = document.getElementById('mode-text');
+            
+            if (online) {
+                dot.classList.add('online');
+                text.innerText = "系统在线 (Online)";
+                modeText.innerText = `模式: ${appData.mode.toUpperCase()} | 电机: ${appData.totalMotors}`;
+                isConnected = true;
+            } else {
+                dot.classList.remove('online');
+                text.innerText = "连接断开 (Reconnecting...)";
+                isConnected = false;
+            }
+        }
+
+        // ================= 渲染逻辑 =================
+
+        function renderInterface() {
+            const container = document.getElementById('main-container');
+            container.innerHTML = '';
+
+            if (appData.mode === 'left' || appData.mode === 'both') {
+                container.appendChild(createHandPanel('left', 0));
+            }
+            if (appData.mode === 'right') {
+                container.appendChild(createHandPanel('right', 0));
+            } else if (appData.mode === 'both') {
+                container.appendChild(createHandPanel('right', 8)); // 右手电机从 ID 8 开始
+            }
+        }
+
+        // 创建一只手的面板
+        function createHandPanel(side, motorOffset) {
+            const panel = document.createElement('div');
+            panel.className = `hand-panel ${side}`;
+            
+            const title = side === 'left' ? 'Left Hand (左手)' : 'Right Hand (右手)';
+            const color = side === 'left' ? '#2979ff' : '#ff9100';
+
+            panel.innerHTML = `
+                <div class="hand-header" style="color:${color}">
+                    <span>${title}</span>
+                    <span style="font-size:0.8em; opacity:0.6">ID: ${motorOffset}-${motorOffset+7}</span>
+                </div>
+                <div class="control-section" id="container-${side}">
+                    <div class="section-label">
+                        <span>Finger Control (Synergy)</span>
+                        <span>Motor Status (Raw)</span>
+                    </div>
+                </div>
+            `;
+
+            const contentDiv = panel.querySelector(`#container-${side}`);
+            
+            // 4个手指，每个手指2个电机
+            const fingerNames = ["Index (食指)", "Middle (中指)", "Ring (无名指)", "Pinky (小指)"];
+
+            fingerNames.forEach((name, fingerIdx) => {
+                const group = document.createElement('div');
+                group.className = 'finger-group';
+
+                // 对应的电机ID
+                const motorId1 = motorOffset + fingerIdx * 2;     // 左电机
+                const motorId2 = motorOffset + fingerIdx * 2 + 1; // 右电机
+
+                // HTML 结构： 标题 | 协同控制(Bend/Side) | 电机反馈(M1/M2)
+                group.innerHTML = `
+                    <div class="finger-title">${name}</div>
+                    
+                    <div class="slider-column">
+                        <div class="slider-wrap">
+                            <div class="slider-header">
+                                <span>Bend (弯曲)</span>
+                                <span class="value-text" id="${side}-f${fingerIdx}-bend-val">0.00</span>
+                            </div>
+                            <input type="range" class="synergy-slider" min="-1.57" max="1.57" step="0.01" value="0"
+                                oninput="onSynergyChange('${side}', ${fingerIdx}, ${motorOffset}, this.value, 'bend')">
+                        </div>
+                        <div class="slider-wrap">
+                            <div class="slider-header">
+                                <span>Side (侧摆)</span>
+                                <span class="value-text" id="${side}-f${fingerIdx}-side-val">0.00</span>
+                            </div>
+                            <input type="range" class="synergy-slider" min="-0.5" max="0.5" step="0.01" value="0"
+                                oninput="onSynergyChange('${side}', ${fingerIdx}, ${motorOffset}, this.value, 'side')">
+                        </div>
+                    </div>
+
+                    <div class="slider-column" style="border-left:1px solid #333; padding-left:15px;">
+                        <div class="slider-wrap">
+                            <div class="slider-header">
+                                <span>Motor ${motorId1}</span>
+                                <span class="value-text" id="m${motorId1}-val">0.00</span>
+                            </div>
+                            <input type="range" class="motor-slider" id="m${motorId1}-slider" min="-2.0" max="2.0" step="0.01" value="0"
+                                oninput="onRawChange(${motorId1}, this.value)">
+                        </div>
+                        <div class="slider-wrap">
+                            <div class="slider-header">
+                                <span>Motor ${motorId2}</span>
+                                <span class="value-text" id="m${motorId2}-val">0.00</span>
+                            </div>
+                            <input type="range" class="motor-slider" id="m${motorId2}-slider" min="-2.0" max="2.0" step="0.01" value="0"
+                                oninput="onRawChange(${motorId2}, this.value)">
+                        </div>
+                    </div>
+                `;
+                contentDiv.appendChild(group);
+            });
+
+            return panel;
+        }
+
+        // ================= 控制算法 (核心) =================
+
+        // 协同模式：当用户拖动 Bend 或 Side 时触发
+        function onSynergyChange(side, fingerIdx, offset, value, type) {
+            const val = parseFloat(value);
+            
+            // 1. 更新 UI 显示
+            document.getElementById(`${side}-f${fingerIdx}-${type}-val`).innerText = val.toFixed(2);
+
+            // 2. 更新内部状态
+            handState[side][fingerIdx][type] = val;
+
+            // 3. 算法计算 (解耦)
+            // Bend (弯曲): 电机异向旋转
+            // Side (侧摆): 电机同向旋转
+            // Motor_L = Side + Bend
+            // Motor_R = Side - Bend
+            const bend = handState[side][fingerIdx].bend;
+            const sideVal = handState[side][fingerIdx].side; // 变量名避开关键字
+
+            let m1_target = sideVal + bend;
+            let m2_target = sideVal - bend;
+
+            // 4. 更新全局目标数组
+            const id1 = offset + fingerIdx * 2;
+            const id2 = offset + fingerIdx * 2 + 1;
+
+            updateMotorTarget(id1, m1_target);
+            updateMotorTarget(id2, m2_target);
+        }
+
+        // 底层模式：当用户直接拖动电机滑块时触发
+        function onRawChange(motorId, value) {
+            const val = parseFloat(value);
+            updateMotorTarget(motorId, val);
+            // 注意：直接动电机不会反推 Bend/Side UI，这是工程调试的常见逻辑，避免死锁
+        }
+
+        // 统一更新函数：同步更新数组和 UI
+        function updateMotorTarget(id, value) {
+            // 限位保护
+            value = Math.max(-2.0, Math.min(2.0, value));
+            
+            // 更新数据
+            appData.targets[id] = value;
+
+            // 更新电机滑块 UI (实现联动效果)
+            const slider = document.getElementById(`m${id}-slider`);
+            const text = document.getElementById(`m${id}-val`);
+            if (slider) slider.value = value;
+            if (text) text.innerText = value.toFixed(2);
+        }
+
+        // 全部复位
+        function resetAll() {
+            // 清空数据
+            appData.targets.fill(0);
+            
+            // 清空协同状态
+            ['left', 'right'].forEach(side => {
+                handState[side].forEach(f => { f.bend = 0; f.side = 0; });
+            });
+
+            // 刷新所有 Input
+            document.querySelectorAll('input[type=range]').forEach(el => el.value = 0);
+            document.querySelectorAll('.value-text').forEach(el => el.innerText = "0.00");
+        }
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>
