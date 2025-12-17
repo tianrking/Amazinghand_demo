@@ -1,0 +1,6 @@
+conda install -c conda-forge pyaudio
+pip install mcp[cli] uvicorn fastapi
+
+
+
+mcp run all_in_one_debug_mcp.py --transport sse
