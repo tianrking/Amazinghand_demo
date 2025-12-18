@@ -1,16 +1,39 @@
-# Case 4: AmazingHand MuJoCo 仿真控制系统
+# 🧮 Case 4: AmazingHand MuJoCo 仿真控制系统
 
-## 项目简介
+<div align="center">
+
+![MuJoCo Simulation](./case_4_1.png)
+
+**基于 MuJoCo 物理引擎的高精度机械手仿真系统**
+
+</div>
+
+## 📋 项目简介
 
 这是一个基于 MuJoCo 物理引擎的 AmazingHand 机械手仿真控制系统，支持单手和双手的实时仿真控制。
 
-## 核心特性
+## ✨ 核心特性
 
-1. **物理仿真** - 基于 MuJoCo 高精度物理引擎
-2. **实时控制** - FastAPI 提供 RESTful API 接口
-3. **可视化** - 实时 3D 仿真窗口显示
-4. **Web 界面** - 简洁的 HTML 控制界面
-5. **双手支持** - 支持左手、右手或双手同时仿真
+1. **🔬 物理仿真** - 基于 MuJoCo 高精度物理引擎
+2. **⚡ 实时控制** - FastAPI 提供 RESTful API 接口
+3. **👁️ 可视化** - 实时 3D 仿真窗口显示
+4. **🌐 Web 界面** - 简洁的 HTML 控制界面
+5. **🤝 双手支持** - 支持左手、右手或双手同时仿真
+
+## 🖼️ 功能展示
+
+<table>
+<tr>
+<td><img src="./case_4_1.png" alt="MuJoCo物理仿真" width="400"/></td>
+<td><img src="./case_4_2.png" alt="单手控制界面" width="400"/></td>
+<td><img src="./case_4_3.png" alt="双手控制界面" width="400"/></td>
+</tr>
+<tr>
+<td align="center">🔬 MuJoCo物理仿真窗口</td>
+<td align="center">🎯 单手Web控制界面</td>
+<td align="center">🤝 双手协同控制界面</td>
+</tr>
+</table>
 
 ## 文件说明
 

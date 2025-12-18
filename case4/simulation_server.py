@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # ================= 配置 =================
-PORT = 8000
+PORT = 8012
 ROOT_PATH = Path(__file__).parent / "AHSimulation"
 # =======================================
 
