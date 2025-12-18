@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazing Hand Controller Pro</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #4CAF50;     /* Green: Motor Status */
+            --control-color: #2196F3;    /* Blue: Finger Control */
+            --danger-color: #ff5252;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 10px; }
+
+        /* Status Bar */
+        .status-bar {
+            background: var(--card-bg);
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--danger-color);
+            transition: background-color 0.3s;
+        }
+
+        /* Section Titles */
+        .section-title {
+            width: 100%;
+            max-width: 900px;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #444;
+            color: #aaa;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Grid Layout */
+        .grid-container {
+            display: grid;
+            gap: 15px;
+            max-width: 900px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        /* Finger control is 4 columns */
+        .fingers-grid { grid-template-columns: repeat(4, 1fr); }
+        /* Motor display is 4 columns (compact) */
+        .motors-grid { grid-template-columns: repeat(4, 1fr); }
+
+        /* Card Styles */
+        .card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .finger-card { border-top: 3px solid var(--control-color); }
+        .motor-card { border-top: 3px solid var(--accent-color); }
+
+        .card-header {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #bbb;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* Slider Group Styles */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-label {
+            font-size: 0.8em;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--control-color);
+        }
+        /* Motor sliders have different color */
+        .motor-card input[type="range"] {
+            accent-color: var(--accent-color);
+        }
+
+        .value-display {
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        /* Buttons */
+        .btn-reset {
+            margin-top: 20px;
+            padding: 12px 40px;
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .btn-reset:hover { opacity: 0.8; }
+
+        /* Preset Actions */
+        .preset-actions {
+            margin: 30px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 900px;
+        }
+        .preset-btn {
+            padding: 10px 20px;
+            background-color: var(--control-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            font-family: inherit;
+        }
+        .preset-btn:hover { opacity: 0.8; }
+        .preset-btn:active { transform: scale(0.95); }
+
+        /* Responsive adjustments */
+        @media (max-width: 800px) {
+            .fingers-grid, .motors-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🤖 Amazing Hand Console Pro</h1>
+
+    <div class="status-bar">
+        <div id="connection-dot" class="status-indicator"></div>
+        <span id="connection-text">Backend Not Connected (127.0.0.1:8000)</span>
+    </div>
+
+    <div class="section-title">
+        <span>🖐️ Finger Pose Control</span>
+        <span style="font-size:0.7em; opacity:0.7">Bend: Bending | Side: Lateral</span>
+    </div>
+    <div class="grid-container fingers-grid" id="fingers-container">
+        </div>
+
+    <div class="section-title">
+        <span>⚙️ Motor Real-time Status</span>
+        <span style="font-size:0.7em; opacity:0.7">ID 0-7 Raw Data</span>
+    </div>
+    <div class="grid-container motors-grid" id="motors-container">
+        </div>
+
+    <div class="section-title">
+        <span>🎭 Preset Gestures</span>
+        <span style="font-size:0.7em; opacity:0.7">Quick Actions</span>
+    </div>
+    <div class="preset-actions">
+        <button class="preset-btn" onclick="setOpenHand()">✋ Open Hand</button>
+        <button class="preset-btn" onclick="setFist()">✊ Fist</button>
+        <button class="preset-btn" onclick="setOKSign()">👌 OK Sign</button>
+        <button class="preset-btn" onclick="setPoint()">👉 Point</button>
+        <button class="preset-btn" onclick="setPeace()">✌️ Peace</button>
+        <button class="preset-btn" onclick="setThumbsUp()">👍 Thumbs Up</button>
+    </div>
+
+    <button class="btn-reset" onclick="resetAll()">🛑 Reset All</button>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        const FINGER_COUNT = 4;
+        const MOTORS_PER_FINGER = 2;
+        const MOTOR_COUNT = FINGER_COUNT * MOTORS_PER_FINGER;
+        const SYNC_INTERVAL = 50; // ms
+
+        // Data state
+        // motorValues stores the final radian values to send to backend (-1.57 ~ 1.57)
+        let motorValues = new Array(MOTOR_COUNT).fill(0.0);
+
+        // Save current finger state for calculation convenience
+        let fingerState = Array.from({length: FINGER_COUNT}, () => ({ bend: 0.0, side: 0.0 }));
+
+        // ==========================================
+        // Initialize UI
+        // ==========================================
+
+        const fingerContainer = document.getElementById('fingers-container');
+        const motorContainer = document.getElementById('motors-container');
+
+        // 1. Generate finger control cards (ID 0-3)
+        const fingerNames = ["Index", "Middle", "Ring", "Thumb"];
+
+        for (let i = 0; i < FINGER_COUNT; i++) {
+            const card = document.createElement('div');
+            card.className = 'card finger-card';
+            card.innerHTML = `
+                <div class="card-header">${fingerNames[i] || 'Finger '+i}</div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Bend</span>
+                        <span class="value-display" id="f${i}-bend-val">0.00</span>
+                    </div>
+                    <input type="range" id="f${i}-bend" min="-0.3" max="1.2" step="0.01" value="0"
+                           oninput="updateFingerLogic(${i})">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Side</span>
+                        <span class="value-display" id="f${i}-side-val">0.00</span>
+                    </div>
+                    <input type="range" id="f${i}-side" min="-0.5" max="0.5" step="0.01" value="0"
+                           oninput="updateFingerLogic(${i})">
+                </div>
+            `;
+            fingerContainer.appendChild(card);
+        }
+
+        // 2. Generate motor display cards (ID 0-7)
+        for (let i = 0; i < MOTOR_COUNT; i++) {
+            const card = document.createElement('div');
+            card.className = 'card motor-card';
+            card.innerHTML = `
+                <div class="card-header">Motor ID ${i}</div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Rad</span>
+                        <span class="value-display" id="m${i}-val">0.00</span>
+                    </div>
+                    <input type="range" id="m${i}-slider" min="-1.2" max="1.2" step="0.01" value="0"
+                           oninput="manualMotorUpdate(${i}, this.value)">
+                </div>
+            `;
+            motorContainer.appendChild(card);
+        }
+
+        // ==========================================
+        // Core Logic: Decoupling Algorithm
+        // ==========================================
+
+        /**
+         * When finger slider changes, calculate corresponding two motor angles
+         * Algorithm:
+         * Motor_Left  (Even ID) = Side + Bend
+         * Motor_Right (Odd  ID) = Side - Bend
+         */
+        function updateFingerLogic(fingerIdx) {
+            // 1. Get inputs
+            const bend = parseFloat(document.getElementById(`f${fingerIdx}-bend`).value);
+            const side = parseFloat(document.getElementById(`f${fingerIdx}-side`).value);
+
+            // Update display values
+            document.getElementById(`f${fingerIdx}-bend-val`).innerText = bend.toFixed(2);
+            document.getElementById(`f${fingerIdx}-side-val`).innerText = side.toFixed(2);
+
+            // Save state
+            fingerState[fingerIdx].bend = bend;
+            fingerState[fingerIdx].side = side;
+
+            // 2. Mixing algorithm
+            // Note: Here we assume motor even IDs are left, odd IDs are right. If your actual hardware is opposite, adjust the plus/minus
+            let motorLeft = side + bend;
+            let motorRight = side - bend;
+
+            // 3. Clamp range
+            motorLeft = Math.max(-1.2, Math.min(1.2, motorLeft));
+            motorRight = Math.max(-1.2, Math.min(1.2, motorRight));
+
+            // 4. Update underlying data and UI
+            const motorId1 = fingerIdx * 2;
+            const motorId2 = fingerIdx * 2 + 1;
+
+            updateMotorUI(motorId1, motorLeft);
+            updateMotorUI(motorId2, motorRight);
+        }
+
+        /**
+         * Update motor data and UI
+         */
+        function updateMotorUI(motorId, value) {
+            motorValues[motorId] = value;
+            document.getElementById(`m${motorId}-slider`).value = value;
+            document.getElementById(`m${motorId}-val`).innerText = value.toFixed(2);
+        }
+
+        /**
+         * Allow user to directly drag the lower motor sliders (manual fine-tuning)
+         * Note: This will break the synchronization with finger control until the next finger slider movement
+         */
+        function manualMotorUpdate(motorId, value) {
+            const val = parseFloat(value);
+            motorValues[motorId] = val;
+            document.getElementById(`m${motorId}-val`).innerText = val.toFixed(2);
+        }
+
+        // ==========================================
+        // Communication & System Functions
+        // ==========================================
+
+        async function syncLoop() {
+            try {
+                const response = await fetch(`${API_URL}/control`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ values: motorValues })
+                });
+
+                if (response.ok) setConnectionStatus(true);
+                else setConnectionStatus(false);
+            } catch (error) {
+                setConnectionStatus(false);
+            }
+        }
+
+        function setConnectionStatus(connected) {
+            const dot = document.getElementById('connection-dot');
+            const text = document.getElementById('connection-text');
+            if (connected) {
+                dot.style.backgroundColor = '#4CAF50';
+                text.innerText = "✅ Connected (Online)";
+            } else {
+                dot.style.backgroundColor = '#ff5252';
+                text.innerText = "❌ Connection Lost (Offline)";
+            }
+        }
+
+        function resetAll() {
+            // Reset array
+            motorValues.fill(0.0);
+
+            // Reset UI - fingers
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                fingerState[i] = { bend: 0, side: 0 };
+                document.getElementById(`f${i}-bend`).value = 0;
+                document.getElementById(`f${i}-side`).value = 0;
+                document.getElementById(`f${i}-bend-val`).innerText = "0.00";
+                document.getElementById(`f${i}-side-val`).innerText = "0.00";
+            }
+
+            // Reset UI - motors
+            for (let i = 0; i < MOTOR_COUNT; i++) {
+                updateMotorUI(i, 0.0);
+            }
+
+            // Send immediately
+            syncLoop();
+        }
+
+        // ==========================================
+        // Preset Gesture Functions
+        // ==========================================
+
+        /**
+         * Helper function to set finger state and update UI
+         */
+        function setFingerState(fingerIdx, bend, side) {
+            document.getElementById(`f${fingerIdx}-bend`).value = bend;
+            document.getElementById(`f${fingerIdx}-side`).value = side;
+            updateFingerLogic(fingerIdx);
+        }
+
+        /**
+         * Open Hand - All fingers extended
+         */
+        function setOpenHand() {
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                setFingerState(i, 0.0, 0.0);
+            }
+            // Special handling for Thumb - slight lateral outward
+            setFingerState(3, 0.0, 0.2);
+            syncLoop();
+        }
+
+        /**
+         * Fist - All fingers bent
+         */
+        function setFist() {
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                setFingerState(i, 1.0, 0.0);
+            }
+            // Thumb curls in more
+            setFingerState(3, 1.0, 0.3);
+            syncLoop();
+        }
+
+        /**
+         * OK Sign - Index and thumb form circle, others extended
+         */
+        function setOKSign() {
+            // Index: more bent
+            setFingerState(0, 0.6, 0.0);
+            // Middle: extended
+            setFingerState(1, 0.0, 0.0);
+            // Ring: extended
+            setFingerState(2, 0.0, 0.0);
+            // Thumb: more bent, closer to index
+            setFingerState(3, 0.7, 0.0);
+            syncLoop();
+        }
+
+        /**
+         * Point - Index extended, others bent
+         */
+        function setPoint() {
+            // Index: extended
+            setFingerState(0, 0.0, 0.0);
+            // Middle: bent
+            setFingerState(1, 1.0, 0.0);
+            // Ring: bent
+            setFingerState(2, 1.0, 0.0);
+            // Thumb: bent away
+            setFingerState(3, 1.0, 0.4);
+            syncLoop();
+        }
+
+        /**
+         * Peace - Index and middle extended in V shape, others bent
+         */
+        function setPeace() {
+            // Index: extended with MORE lateral separation (right)
+            setFingerState(0, 0.0, 0.5);
+            // Middle: extended with MORE lateral separation (left)
+            setFingerState(1, 0.0, -0.5);
+            // Ring: bent
+            setFingerState(2, 1.0, 0.0);
+            // Thumb: bent
+            setFingerState(3, 1.0, 0.4);
+            syncLoop();
+        }
+
+        /**
+         * Thumbs Up - Thumb up, others curled
+         */
+        function setThumbsUp() {
+            // Index: curled
+            setFingerState(0, 1.0, 0.0);
+            // Middle: curled
+            setFingerState(1, 1.0, 0.0);
+            // Ring: curled
+            setFingerState(2, 1.0, 0.0);
+            // Thumb: EXTENDED with lateral offset
+            setFingerState(3, 0.0, 0.3);
+            syncLoop();
+        }
+
+        // Start loop
+        setInterval(syncLoop, SYNC_INTERVAL);
+
+    </script>
+</body>
+</html>

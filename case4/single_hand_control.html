@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazing Hand 上位机 Pro</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #4CAF50;     /* 绿色：电机状态 */
+            --control-color: #2196F3;    /* 蓝色：手指控制 */
+            --danger-color: #ff5252;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 10px; }
+        
+        /* 状态栏 */
+        .status-bar {
+            background: var(--card-bg);
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--danger-color);
+            transition: background-color 0.3s;
+        }
+
+        /* 区域标题 */
+        .section-title {
+            width: 100%;
+            max-width: 900px;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #444;
+            color: #aaa;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 网格布局 */
+        .grid-container {
+            display: grid;
+            gap: 15px;
+            max-width: 900px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        /* 手指控制是4列 */
+        .fingers-grid { grid-template-columns: repeat(4, 1fr); }
+        /* 电机显示是4列（紧凑版） */
+        .motors-grid { grid-template-columns: repeat(4, 1fr); }
+
+        /* 卡片样式 */
+        .card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .finger-card { border-top: 3px solid var(--control-color); }
+        .motor-card { border-top: 3px solid var(--accent-color); }
+
+        .card-header {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #bbb;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* 滑块组样式 */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-label {
+            font-size: 0.8em;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--control-color);
+        }
+        /* 电机滑块颜色不同 */
+        .motor-card input[type="range"] {
+            accent-color: var(--accent-color);
+        }
+
+        .value-display {
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        /* 按钮 */
+        .btn-reset {
+            margin-top: 20px;
+            padding: 12px 40px;
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .btn-reset:hover { opacity: 0.8; }
+
+        /* 预设动作 */
+        .preset-actions {
+            margin: 30px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 900px;
+        }
+        .preset-btn {
+            padding: 10px 20px;
+            background-color: var(--control-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            font-family: inherit;
+        }
+        .preset-btn:hover { opacity: 0.8; }
+        .preset-btn:active { transform: scale(0.95); }
+
+        /* 响应式调整 */
+        @media (max-width: 800px) {
+            .fingers-grid, .motors-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🤖 Amazing Hand 控制台 Pro</h1>
+
+    <div class="status-bar">
+        <div id="connection-dot" class="status-indicator"></div>
+        <span id="connection-text">未连接后端 (127.0.0.1:8000)</span>
+    </div>
+
+    <div class="section-title">
+        <span>🖐️ 手指姿态控制 (Finger Control)</span>
+        <span style="font-size:0.7em; opacity:0.7">Bend: 弯曲 | Side: 侧摆</span>
+    </div>
+    <div class="grid-container fingers-grid" id="fingers-container">
+        </div>
+
+    <div class="section-title">
+        <span>⚙️ 电机实时状态 (Motor Output)</span>
+        <span style="font-size:0.7em; opacity:0.7">ID 0-7 Raw Data</span>
+    </div>
+    <div class="grid-container motors-grid" id="motors-container">
+        </div>
+
+    <div class="section-title">
+        <span>🎭 预设手势 (Preset Gestures)</span>
+        <span style="font-size:0.7em; opacity:0.7">快捷动作 (Quick Actions)</span>
+    </div>
+    <div class="preset-actions">
+        <button class="preset-btn" onclick="setOpenHand()">✋ 张开手掌 (Open Hand)</button>
+        <button class="preset-btn" onclick="setFist()">✊ 握拳 (Fist)</button>
+        <button class="preset-btn" onclick="setOKSign()">👌 OK手势 (OK Sign)</button>
+        <button class="preset-btn" onclick="setPoint()">👉 指向 (Point)</button>
+        <button class="preset-btn" onclick="setPeace()">✌️ 胜利手势 (Peace)</button>
+        <button class="preset-btn" onclick="setThumbsUp()">👍 竖起大拇指 (Thumbs Up)</button>
+    </div>
+
+    <button class="btn-reset" onclick="resetAll()">🛑 全部归零 (Reset)</button>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        const FINGER_COUNT = 4;
+        const MOTORS_PER_FINGER = 2;
+        const MOTOR_COUNT = FINGER_COUNT * MOTORS_PER_FINGER;
+        const SYNC_INTERVAL = 50; // ms
+
+        // 数据状态
+        // motorValues 存放最终发送给后端的弧度值 (-1.57 ~ 1.57)
+        let motorValues = new Array(MOTOR_COUNT).fill(0.0);
+        
+        // 保存手指当前状态，方便计算
+        let fingerState = Array.from({length: FINGER_COUNT}, () => ({ bend: 0.0, side: 0.0 }));
+
+        // ==========================================
+        // 初始化 UI
+        // ==========================================
+        
+        const fingerContainer = document.getElementById('fingers-container');
+        const motorContainer = document.getElementById('motors-container');
+
+        // 1. 生成手指控制卡片 (ID 0-3)
+        const fingerNames = ["食指 (Index)", "中指 (Middle)", "无名指 (Ring)", "拇指 (Thumb)"];
+        
+        for (let i = 0; i < FINGER_COUNT; i++) {
+            const card = document.createElement('div');
+            card.className = 'card finger-card';
+            card.innerHTML = `
+                <div class="card-header">${fingerNames[i] || 'Finger '+i}</div>
+                
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>弯曲 (Bend)</span>
+                        <span class="value-display" id="f${i}-bend-val">0.00</span>
+                    </div>
+                    <input type="range" id="f${i}-bend" min="-0.3" max="1.2" step="0.01" value="0"
+                           oninput="updateFingerLogic(${i})">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>侧摆 (Side)</span>
+                        <span class="value-display" id="f${i}-side-val">0.00</span>
+                    </div>
+                    <input type="range" id="f${i}-side" min="-0.5" max="0.5" step="0.01" value="0"
+                           oninput="updateFingerLogic(${i})">
+                </div>
+            `;
+            fingerContainer.appendChild(card);
+        }
+
+        // 2. 生成电机显示卡片 (ID 0-7)
+        for (let i = 0; i < MOTOR_COUNT; i++) {
+            const card = document.createElement('div');
+            card.className = 'card motor-card';
+            card.innerHTML = `
+                <div class="card-header">Motor ID ${i}</div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>弧度 (Rad)</span>
+                        <span class="value-display" id="m${i}-val">0.00</span>
+                    </div>
+                    <input type="range" id="m${i}-slider" min="-1.2" max="1.2" step="0.01" value="0"
+                           oninput="manualMotorUpdate(${i}, this.value)">
+                </div>
+            `;
+            motorContainer.appendChild(card);
+        }
+
+        // ==========================================
+        // 核心逻辑：解耦算法
+        // ==========================================
+
+        /**
+         * 当手指滑块变动时，计算对应的两个电机角度
+         * 算法：
+         * Motor_Left  (Even ID) = Side + Bend
+         * Motor_Right (Odd  ID) = Side - Bend
+         */
+        function updateFingerLogic(fingerIdx) {
+            // 1. 获取输入
+            const bend = parseFloat(document.getElementById(`f${fingerIdx}-bend`).value);
+            const side = parseFloat(document.getElementById(`f${fingerIdx}-side`).value);
+            
+            // 更新显示数值
+            document.getElementById(`f${fingerIdx}-bend-val`).innerText = bend.toFixed(2);
+            document.getElementById(`f${fingerIdx}-side-val`).innerText = side.toFixed(2);
+
+            // 保存状态
+            fingerState[fingerIdx].bend = bend;
+            fingerState[fingerIdx].side = side;
+
+            // 2. 混合算法 (Mixing)
+            // 注意：这里假设电机偶数ID是左，奇数ID是右。如果你的实际硬件相反，请调整加减号
+            let motorLeft = side + bend;
+            let motorRight = side - bend;
+
+            // 3. 限制范围 (Clamping)
+            motorLeft = Math.max(-1.2, Math.min(1.2, motorLeft));
+            motorRight = Math.max(-1.2, Math.min(1.2, motorRight));
+
+            // 4. 更新底层数据和UI
+            const motorId1 = fingerIdx * 2;
+            const motorId2 = fingerIdx * 2 + 1;
+
+            updateMotorUI(motorId1, motorLeft);
+            updateMotorUI(motorId2, motorRight);
+        }
+
+        /**
+         * 更新电机的数据和UI
+         */
+        function updateMotorUI(motorId, value) {
+            motorValues[motorId] = value;
+            document.getElementById(`m${motorId}-slider`).value = value;
+            document.getElementById(`m${motorId}-val`).innerText = value.toFixed(2);
+        }
+
+        /**
+         * 允许用户直接拖动下方电机滑块 (手动微调)
+         * 注意：这会破坏手指控制的同步性，直到下一次动手指滑块
+         */
+        function manualMotorUpdate(motorId, value) {
+            const val = parseFloat(value);
+            motorValues[motorId] = val;
+            document.getElementById(`m${motorId}-val`).innerText = val.toFixed(2);
+        }
+
+        // ==========================================
+        // 通信与系统功能
+        // ==========================================
+
+        async function syncLoop() {
+            try {
+                const response = await fetch(`${API_URL}/control`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ values: motorValues })
+                });
+
+                if (response.ok) setConnectionStatus(true);
+                else setConnectionStatus(false);
+            } catch (error) {
+                setConnectionStatus(false);
+            }
+        }
+
+        function setConnectionStatus(connected) {
+            const dot = document.getElementById('connection-dot');
+            const text = document.getElementById('connection-text');
+            if (connected) {
+                dot.style.backgroundColor = '#4CAF50';
+                text.innerText = "✅ 已连接 (Online)";
+            } else {
+                dot.style.backgroundColor = '#ff5252';
+                text.innerText = "❌ 连接断开 (Offline)";
+            }
+        }
+
+        function resetAll() {
+            // 重置数组
+            motorValues.fill(0.0);
+            
+            // 重置 UI - 手指
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                fingerState[i] = { bend: 0, side: 0 };
+                document.getElementById(`f${i}-bend`).value = 0;
+                document.getElementById(`f${i}-side`).value = 0;
+                document.getElementById(`f${i}-bend-val`).innerText = "0.00";
+                document.getElementById(`f${i}-side-val`).innerText = "0.00";
+            }
+
+            // 重置 UI - 电机
+            for (let i = 0; i < MOTOR_COUNT; i++) {
+                updateMotorUI(i, 0.0);
+            }
+            
+            // 立即发送
+            syncLoop();
+        }
+
+        // ==========================================
+        // 预设手势函数
+        // ==========================================
+
+        /**
+         * 设置手指状态并更新UI的辅助函数
+         */
+        function setFingerState(fingerIdx, bend, side) {
+            document.getElementById(`f${fingerIdx}-bend`).value = bend;
+            document.getElementById(`f${fingerIdx}-side`).value = side;
+            updateFingerLogic(fingerIdx);
+        }
+
+        /**
+         * 张开手掌 - 所有手指伸展
+         */
+        function setOpenHand() {
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                setFingerState(i, 0.0, 0.0);
+            }
+            // 拇指特殊处理 - 轻微外展
+            setFingerState(3, 0.0, 0.2);
+            syncLoop();
+        }
+
+        /**
+         * 握拳 - 所有手指弯曲
+         */
+        function setFist() {
+            for (let i = 0; i < FINGER_COUNT; i++) {
+                setFingerState(i, 1.0, 0.0);
+            }
+            // 拇指弯曲更多
+            setFingerState(3, 1.0, 0.3);
+            syncLoop();
+        }
+
+        /**
+         * OK手势 - 食指和拇指成圈，其他伸展
+         */
+        function setOKSign() {
+            // 食指：弯曲更多
+            setFingerState(0, 0.6, 0.0);
+            // 中指：伸展
+            setFingerState(1, 0.0, 0.0);
+            // 无名指：伸展
+            setFingerState(2, 0.0, 0.0);
+            // 拇指：弯曲更多，靠近食指
+            setFingerState(3, 0.7, 0.0);
+            syncLoop();
+        }
+
+        /**
+         * 指向 - 食指伸展，其他弯曲
+         */
+        function setPoint() {
+            // 食指：伸展
+            setFingerState(0, 0.0, 0.0);
+            // 中指：弯曲
+            setFingerState(1, 1.0, 0.0);
+            // 无名指：弯曲
+            setFingerState(2, 1.0, 0.0);
+            // 拇指：弯曲向外
+            setFingerState(3, 1.0, 0.4);
+            syncLoop();
+        }
+
+        /**
+         * 胜利手势 - 食指和中指伸展呈V形，其他弯曲
+         */
+        function setPeace() {
+            // 食指：伸展并向右更多侧摆
+            setFingerState(0, 0.0, 0.5);
+            // 中指：伸展并向左更多侧摆
+            setFingerState(1, 0.0, -0.5);
+            // 无名指：弯曲
+            setFingerState(2, 1.0, 0.0);
+            // 拇指：弯曲
+            setFingerState(3, 1.0, 0.4);
+            syncLoop();
+        }
+
+        /**
+         * 竖起大拇指 - 拇指向上，其他弯曲
+         */
+        function setThumbsUp() {
+            // 食指：弯曲
+            setFingerState(0, 1.0, 0.0);
+            // 中指：弯曲
+            setFingerState(1, 1.0, 0.0);
+            // 无名指：弯曲
+            setFingerState(2, 1.0, 0.0);
+            // 拇指：伸展并有侧摆偏移
+            setFingerState(3, 0.0, 0.3);
+            syncLoop();
+        }
+
+        // 启动循环
+        setInterval(syncLoop, SYNC_INTERVAL);
+
+    </script>
+</body>
+</html>
