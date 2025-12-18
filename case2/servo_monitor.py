@@ -1,25 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-SCServo角度实时监控上位机 v3.1.10 - 最终版
-支持ID 11-18舵机，带详细日志和错误诊断
-修复了广播ping的bug
-新增点位记录和控制功能
-修复应用点位时舵机断开的临界问题
-修复QMessageBox参数错误
-解决串口端口冲突问题（错误码-1）
-实现线程安全的舵机控制
-新增扭矩控制功能（失能/启用）
-修复扭矩失能失败问题
-增加重试机制提高成功率
-修复速度和负载数据读取错误
-使用正确的ReadLoad方法读取负载数据
-优化通信频率，降低误码率
-热插拔检测改为2秒间隔
-数据读取改为0.2秒间隔
-添加负载调试日志和错误显示
-修复负载调试日志中的属性错误
-"""
+
 
 import sys
 import os
@@ -455,7 +436,7 @@ class AngleMonitorGUI(QMainWindow):
 
     def init_ui(self):
         """初始化界面"""
-        self.setWindowTitle("SCServo角度监控工具 v3.1 (ID 11-18) - 支持点位记录")
+        self.setWindowTitle("SCServo角度监控工具 (ID 11-18) - 支持点位记录")
         self.setGeometry(100, 100, 900, 800)
         self.setMinimumSize(800, 700)
 
