@@ -354,6 +354,8 @@ MIT License
 **[🐛 报告问题](https://github.com/tianrking/AmazingHand/issues)** |
 **[💡 提出建议](https://github.com/tianrking/AmazingHand/discussions)**
 
-Made with ❤️ by the AmazingHand Team
+## 🔗 官方项目链接
+
+**[🏠 AmazingHand 官方项目](https://github.com/pollen-robotics/AmazingHand/)** |
 
 </div>

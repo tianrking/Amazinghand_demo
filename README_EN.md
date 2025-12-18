@@ -358,6 +358,8 @@ MIT License
 **[🐛 Report Issues](https://github.com/tianrking/AmazingHand/issues)** |
 **[💡 Suggest Features](https://github.com/tianrking/AmazingHand/discussions)** |
 
-Made with ❤️ by the AmazingHand Team
+## 🔗 Official Project Link
+
+**[🏠 AmazingHand Official Project](https://github.com/pollen-robotics/AmazingHand/)** |
 
 </div>

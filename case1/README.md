@@ -161,6 +161,8 @@ MIT License
 **[⬆️ 返回顶部](#-case-1-amazinghand-手势控制与点位重放系统)** |
 **[🔙 返回主项目](../README.md)**
 
-Made with ❤️ by AmazingHand Team
+## 🔗 官方项目链接
+
+**[🏠 AmazingHand 官方项目](https://github.com/pollen-robotics/AmazingHand/)** |
 
 </div>

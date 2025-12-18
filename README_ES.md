@@ -358,6 +358,5 @@ Licencia MIT
 **[🐛 Reportar Problemas](https://github.com/tianrking/AmazingHand/issues)** |
 **[💡 Sugerir Características](https://github.com/tianrking/AmazingHand/discussions)** |
 
-Hecho con ❤️ por el Equipo AmazingHand
 
 </div>
